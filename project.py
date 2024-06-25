@@ -8,8 +8,14 @@ import pytz
 import plotly.graph_objects as go
 import pandas as pd
 
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env file
+load_dotenv()
+
 # MongoDB connection
-client = MongoClient("mongodb+srv://dudu49:mylovebelwifi96@tuto.aqlgdjl.mongodb.net/Mqtt-project")
+client = MongoClient(os.getenv('MongoUrl'))
 db = client['Mqtt-project']
 
 # MQTT callbacks
