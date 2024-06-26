@@ -1,15 +1,16 @@
 import datetime
-import paho.mqtt.client as mqtt
 import json
-from pymongo import MongoClient
-import numpy as np
-import streamlit as st
-import pytz
-import plotly.graph_objects as go
-import pandas as pd
-
-from dotenv import load_dotenv
 import os
+import threading
+
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+import streamlit as st
+from dotenv import load_dotenv
+from pymongo import MongoClient
+import paho.mqtt.client as mqtt
+import pydeck as pdk
 
 # Load environment variables from .env file
 load_dotenv()
@@ -131,7 +132,7 @@ def generate_recommendations(sensor_id, statistics):
 
 # Sensor positions (randomly generated for demonstration purposes)
 sensor_positions = {
-    'room1': {'lat': 48.8566, 'lon': 2.3522},  # Paris coordinates
+    'room1': {'lat': 48.825745818582114, 'lon': 2.267290496852181},  # Paris coordinates  48.825745818582114, 2.267290496852181
     'room2': {'lat': 51.5074, 'lon': -0.1278},  # London coordinates
     'kitchen': {'lat': 40.7128, 'lon': -74.0060}  # New York coordinates
 }
@@ -140,19 +141,47 @@ sensor_positions = {
 def main():
     st.title('Analyse des données de capteurs')
     
-    # Display the map
-    st.subheader('Carte des capteurs')
-    map_data = pd.DataFrame([
-        {'lat': pos['lat'], 'lon': pos['lon'], 'sensor_id': sensor_id}
-        for sensor_id, pos in sensor_positions.items()
-    ])
-    st.map(map_data)
-    
-    # Get user click on the map
     selected_sensor_id = st.selectbox('Choisir le capteur', sensor_positions.keys())
     
     start_date = st.date_input('Date de début', datetime.date.today() - datetime.timedelta(days=7))
     end_date = st.date_input('Date de fin', datetime.date.today())
+    
+    if selected_sensor_id:
+        lat = sensor_positions[selected_sensor_id]['lat']
+        lon = sensor_positions[selected_sensor_id]['lon']
+        zoom_level = 12
+    else:
+        lat = 0
+        lon = 0
+        zoom_level = 2
+    
+    # Create a DataFrame with sensor positions
+    positions_df = pd.DataFrame(sensor_positions).T.reset_index().rename(columns={'index': 'sensor_id', 'lat': 'latitude', 'lon': 'longitude'})
+    
+    # Highlight the selected sensor
+    selected_sensor_pos = positions_df[positions_df['sensor_id'] == selected_sensor_id]
+
+    # Create the pydeck map
+    view_state = pdk.ViewState(
+        latitude=lat,
+        longitude=lon,
+        zoom=zoom_level
+    )
+
+    layer = pdk.Layer(
+        'ScatterplotLayer',
+        data=positions_df,
+        get_position='[longitude, latitude]',
+        get_radius=1000,  # Set radius to visualize markers clearly
+        get_fill_color='[255, 0, 0, 160]',
+        pickable=True
+    )
+
+    tool_tip = {"html": "Sensor ID:<br/> <b>{sensor_id}</b> ", "style": {"backgroundColor": "steelblue", "color": "white"}}
+
+    r = pdk.Deck(layers=[layer], initial_view_state=view_state, tooltip=tool_tip)
+
+    st.pydeck_chart(r)
     
     if start_date <= end_date:
         start_time = datetime.datetime.combine(start_date, datetime.time.min)
@@ -208,7 +237,6 @@ def main():
 
 if __name__ == '__main__':
     # Start the MQTT client in a separate thread
-    import threading
     mqtt_thread = threading.Thread(target=mqttc.loop_forever)
     mqtt_thread.start()
     
