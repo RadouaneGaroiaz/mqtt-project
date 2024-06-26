@@ -85,6 +85,7 @@ def compute_statistics(sensor_id, start_time, end_time):
         }
     else:
         return None
+
 # Function to get sensor status
 def get_sensor_status(sensor_id):
     collection = db[f'sensor_{sensor_id}']
@@ -116,7 +117,7 @@ def get_time_series_data(sensor_id, start_time, end_time):
         humidity.append(doc['data']['humidity'])
         temp.append(doc['data']['temp'])
     
-    return pd.DataFrame({'timestamp': timestamps, 'humidity': humidity, 'temp': temp}) 
+    return pd.DataFrame({'timestamp': timestamps, 'humidity': humidity, 'temp': temp})
 
 def generate_recommendations(sensor_id, statistics):
     recommendations = []
@@ -128,12 +129,28 @@ def generate_recommendations(sensor_id, statistics):
         recommendations.append("Recommandation: Les conditions sont normales.")
     return recommendations
 
+# Sensor positions (randomly generated for demonstration purposes)
+sensor_positions = {
+    'room1': {'lat': 48.8566, 'lon': 2.3522},  # Paris coordinates
+    'room2': {'lat': 51.5074, 'lon': -0.1278},  # London coordinates
+    'kitchen': {'lat': 40.7128, 'lon': -74.0060}  # New York coordinates
+}
 
 # Streamlit interface
 def main():
     st.title('Analyse des données de capteurs')
     
-    sensor_id = st.selectbox('Choisir le capteur', ['room1', 'room2', 'kitchen'])
+    # Display the map
+    st.subheader('Carte des capteurs')
+    map_data = pd.DataFrame([
+        {'lat': pos['lat'], 'lon': pos['lon'], 'sensor_id': sensor_id}
+        for sensor_id, pos in sensor_positions.items()
+    ])
+    st.map(map_data)
+    
+    # Get user click on the map
+    selected_sensor_id = st.selectbox('Choisir le capteur', sensor_positions.keys())
+    
     start_date = st.date_input('Date de début', datetime.date.today() - datetime.timedelta(days=7))
     end_date = st.date_input('Date de fin', datetime.date.today())
     
@@ -141,14 +158,14 @@ def main():
         start_time = datetime.datetime.combine(start_date, datetime.time.min)
         end_time = datetime.datetime.combine(end_date, datetime.time.max)
         
-        stats = compute_statistics(sensor_id, start_time, end_time)
-        status = get_sensor_status(sensor_id)
+        stats = compute_statistics(selected_sensor_id, start_time, end_time)
+        status = get_sensor_status(selected_sensor_id)
 
-        st.subheader(f'Statut du capteur {sensor_id}')
+        st.subheader(f'Statut du capteur {selected_sensor_id}')
         st.write(f"Statut: {status}")
 
         if stats:
-            st.subheader(f'Statistiques pour {sensor_id}')
+            st.subheader(f'Statistiques pour {selected_sensor_id}')
             st.write(f"Moyenne de l'humidité: {stats['avg_humidity']:.2f}")
             st.write(f"Moyenne de la température: {stats['avg_temp']:.2f}")
             st.write(f"Min de l'humidité: {stats['min_humidity']:.2f}")
@@ -158,15 +175,15 @@ def main():
             st.write(f"Écart type de l'humidité: {stats['std_humidity']:.2f}")
             st.write(f"Écart type de la température: {stats['std_temp']:.2f}")
 
-                  # Generate recommendations
-            recommendations = generate_recommendations(sensor_id, stats)
+            # Generate recommendations
+            recommendations = generate_recommendations(selected_sensor_id, stats)
             
             st.subheader('Recommandations')
             for rec in recommendations:
                 st.write(rec)
                 
-             # Plot time series data
-            time_series_data = get_time_series_data(sensor_id, start_time, end_time)
+            # Plot time series data
+            time_series_data = get_time_series_data(selected_sensor_id, start_time, end_time)
             
             if not time_series_data.empty:
                 st.subheader('Graphiques des données')
@@ -183,9 +200,9 @@ def main():
                 
                 st.plotly_chart(fig)
             else:
-                st.write(f"Aucune donnée disponible pour {sensor_id} entre {start_time} et {end_time}")
+                st.write(f"Aucune donnée disponible pour {selected_sensor_id} entre {start_time} et {end_time}")
         else:
-            st.write(f"Aucune donnée disponible pour {sensor_id} entre {start_time} et {end_time}")
+            st.write(f"Aucune donnée disponible pour {selected_sensor_id} entre {start_time} et {end_time}")
     else:
         st.error('Erreur: La date de début doit être antérieure à la date de fin.')
 
