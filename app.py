@@ -5,8 +5,8 @@ import pydeck as pdk
 import plotly.graph_objects as go
 import pandas as pd
 from mqtt_handlers import setup_mqtt_client
-from db_operations import compute_statistics, get_sensor_status, get_time_series_data, generate_recommendations
-from utils import sensor_positions
+from db_operations import compute_statistics, get_sensor_status, get_time_series_data
+from utils import sensor_positions, generate_recommendations
 
 def main():
     st.title('Analyse des données de capteurs')

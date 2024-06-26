@@ -66,13 +66,3 @@ def get_time_series_data(sensor_id, start_time, end_time):
         temp.append(doc['data']['temp'])
     
     return pd.DataFrame({'timestamp': timestamps, 'humidity': humidity, 'temp': temp})
-
-def generate_recommendations(sensor_id, statistics):
-    recommendations = []
-    if statistics['avg_temp'] > 25:
-        recommendations.append(f"Recommandation: Refroidir la {sensor_id} avec la climatisation.")
-    if statistics['avg_humidity'] > 60:
-        recommendations.append(f"Recommandation: Utiliser un déshumidificateur dans la {sensor_id}.")
-    if not recommendations:
-        recommendations.append("Recommandation: Les conditions sont normales.")
-    return recommendations
