@@ -1,22 +1,3 @@
-"""
-MicroPython IoT Weather Station Example for Wokwi.com
-
-To view the data:
-
-1. Go to http://www.hivemq.com/demos/websocket-client/
-2. Click "Connect"
-3. Under Subscriptions, click "Add New Topic Subscription"
-4. In the Topic field, type "wokwi-weather" then click "Subscribe"
-
-Now click on the DHT22 sensor in the simulation,
-change the temperature/humidity, and you should see
-the message appear on the MQTT Broker, in the "Messages" pane.
-
-Copyright (C) 2022, Uri Shaked
-
-https://wokwi.com/arduino/projects/322577683855704658
-"""
-
 import network
 import time
 from machine import Pin
@@ -26,47 +7,79 @@ from umqtt.simple import MQTTClient
 
 # MQTT Server Parameters
 MQTT_CLIENT_ID = "G1"
-MQTT_BROKER    = "51.38.185.58"
-MQTT_USER      = ""
-MQTT_PASSWORD  = ""
-MQTT_TOPIC     = "kitchen/topic"
-STATUS         = "Disconnected"
+MQTT_BROKER = "51.38.185.58"
+MQTT_USER = ""
+MQTT_PASSWORD = ""
+MQTT_TOPIC = "kitchen/topic"
+STATUS = "Disconnected"
 
+# Pin setup
 sensor = dht.DHT22(Pin(15))
+led = Pin(23, Pin.OUT)  # Pin D23 as output for LED
 
-print("Connecting to WiFi", end="")
-sta_if = network.WLAN(network.STA_IF)
-sta_if.active(True)
-sta_if.connect('Wokwi-GUEST', '')
-while not sta_if.isconnected():
-  print(".", end="")
-  time.sleep(0.1)
-print(" Connected!")
+# Initialize LED to off
+led.value(0)
 
-print("Connecting to MQTT server... ", end="")
-client = MQTTClient(MQTT_CLIENT_ID, MQTT_BROKER, user=MQTT_USER, password=MQTT_PASSWORD)
-client.connect()
+def mqtt_callback(topic, msg):
+    global led
+    print("Received MQTT message on topic {}: {}".format(topic, msg))
+    if msg == b"ledOn":
+        print("Turning LED ON")
+        led.value(1)  # Turn LED on
+    elif msg == b"ledOff":
+        print("Turning LED OFF")
+        led.value(0)  # Turn LED off
+    else:
+        print("Unknown command")
 
-print("Connected!")
-STATUS = "Connected"
+def connect_wifi():
+    print("Connecting to WiFi", end="")
+    sta_if = network.WLAN(network.STA_IF)
+    sta_if.active(True)
+    sta_if.connect('Wokwi-GUEST', '')
+    while not sta_if.isconnected():
+        print(".", end="")
+        time.sleep(0.1)
+    print(" Connected!")
 
-prev_weather = ""
-while True:
-  print("Measuring weather conditions... ", end="")
-  sensor.measure() 
-  message = ujson.dumps({
-    "status": STATUS,
-    "data": {
-      "temp": sensor.temperature(),
-      "humidity": sensor.humidity(),
-    }
-     
-  })
-  if message != prev_weather:
-    print("Updated!")
-    print("Reporting to MQTT topic {}: {}".format(MQTT_TOPIC, message))
-    client.publish(MQTT_TOPIC, message)
-    prev_weather = message
-  else:
-    print("No change")
-  time.sleep(1)
+def main():
+    global STATUS
+    connect_wifi()
+
+    print("Connecting to MQTT server... ", end="")
+    client = MQTTClient(MQTT_CLIENT_ID, MQTT_BROKER, user=MQTT_USER, password=MQTT_PASSWORD)
+
+    # Set the callback function
+    client.set_callback(mqtt_callback)
+
+    client.connect()
+    client.subscribe(MQTT_TOPIC)
+    print("Connected!")
+    STATUS = "Connected"
+
+    prev_weather = ""
+    while True:
+        print("Measuring weather conditions... ", end="")
+        sensor.measure()
+        message = ujson.dumps({
+            "status": STATUS,
+            "data": {
+                "temp": sensor.temperature(),
+                "humidity": sensor.humidity(),
+            }
+        })
+        if message != prev_weather:
+            print("Updated!")
+            print("Reporting to MQTT topic {}: {}".format(MQTT_TOPIC, message))
+            client.publish(MQTT_TOPIC, message)
+            prev_weather = message
+        else:
+            print("No change")
+
+        # Check for incoming MQTT messages
+        client.check_msg()
+
+        time.sleep(5)
+
+if __name__ == "__main__":
+    main()
