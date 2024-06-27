@@ -8,6 +8,12 @@ from mqtt_handlers import setup_mqtt_client
 from db_operations import compute_statistics, get_sensor_status, get_time_series_data
 from utils import sensor_positions, generate_recommendations
 
+def send_led_command(client, command):
+    topic = "kitchen/topic"
+    payload = command
+    client.publish(topic, payload)
+    print(f"Sent command '{command}' to topic '{topic}'")
+
 def main():
     st.title('Analyse des données de capteurs')
     
@@ -75,6 +81,12 @@ def main():
             st.subheader('Recommandations')
             for rec in recommendations:
                 st.write(rec)
+            
+            if st.button('Turn LED On'):
+                send_led_command(mqtt_client, "ledOn")
+            
+            if st.button('Turn LED Off'):
+                send_led_command(mqtt_client, "ledOff")
                 
             time_series_data = get_time_series_data(selected_sensor_id, start_time, end_time)
             

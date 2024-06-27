@@ -31,6 +31,12 @@ def on_message(client, userdata, msg):
     except Exception as e:
         print(f"Error inserting into MongoDB: {e}")
 
+def send_led_command(command):
+    topic = "kitchen/topic"
+    payload = command
+    mqtt.publish(topic, payload)
+    print(f"Sent command '{command}' to topic '{topic}'")
+
 def setup_mqtt_client():
     mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     mqttc.on_connect = on_connect
